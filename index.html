@@ -34,6 +34,11 @@ h1 .pre{display:block;font-size:.36em;letter-spacing:.14em;color:var(--muted);ma
 h2{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.08em;margin:0 0 14px}
 .meta{color:var(--muted);margin:0;display:flex;flex-wrap:wrap;gap:4px 18px;font-variant-numeric:tabular-nums}
 .meta b{color:var(--fg);font-weight:600}
+.head-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px}
+.toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.toggle button{font:600 14px var(--body);border:0;background:transparent;color:var(--muted);padding:7px 14px;border-radius:999px;cursor:pointer}
+.toggle button[aria-pressed="true"]{background:var(--accent);color:#FFF6EC}
+.toggle button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
 /* Meander (Greek key) band, tinted with the accent through a mask. */
 .meander{height:14px;margin-top:20px;background:var(--accent);opacity:.75;
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Cpath d='M0 23H24M0 1H24M18 23V5H6V17H12V11'/%3E%3C/svg%3E") repeat-x left center/14px 14px;
@@ -120,7 +125,13 @@ dialog .row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
   <header>
     <p class="eyebrow">S·P·Q·R</p>
     <h1><span class="pre" id="pre">Roma</span>Mullah Tracker</h1>
-    <p class="meta" id="meta"></p>
+    <div class="head-row">
+      <p class="meta" id="meta"></p>
+      <div class="toggle" role="group" aria-label="Vis beløb i">
+        <button type="button" data-cur="eur" aria-pressed="true">€ Euro</button>
+        <button type="button" data-cur="dkk" aria-pressed="false">kr. Kroner</button>
+      </div>
+    </div>
     <div class="meander" aria-hidden="true"></div>
   </header>
   <section class="tiles" id="tiles" aria-label="Overblik"></section>
@@ -165,12 +176,17 @@ dialog .row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
 (function(){
 var S, sha = null, days = [], token = null, busy = false;
 var KEY = 'mullah-token', TZ = 'Europe/Rome', ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
-try { token = localStorage.getItem(KEY); } catch (_) {}
+var cur = 'eur';
+try { token = localStorage.getItem(KEY); if (localStorage.getItem('mullah-cur') === 'dkk') cur = 'dkk'; } catch (_) {}
 
 function $(id){ return document.getElementById(id); }
 function fmt(n, d){ d = d == null ? 2 : d; return n.toLocaleString('da-DK', {minimumFractionDigits:d, maximumFractionDigits:d}); }
 function eur(n){ return fmt(n) + ' €'; }
 function dkk(n){ return fmt(n * S.rate) + ' kr.'; }
+// Display currency: the chosen one is shown big, the other small underneath. Amounts are always stored in euro.
+function main(n){ return cur === 'dkk' ? dkk(n) : eur(n); }
+function alt(n){ return cur === 'dkk' ? eur(n) : dkk(n); }
+function short(n){ return cur === 'dkk' ? fmt(n * S.rate, 0) + ' kr.' : fmt(n, 0) + ' €'; }
 function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 // Dates are plain YYYY-MM-DD strings in Rome time; noon UTC keeps them on the right day when formatting.
 function romeDate(t){ return new Intl.DateTimeFormat('en-CA', {timeZone:TZ, year:'numeric', month:'2-digit', day:'2-digit'}).format(t); }
@@ -201,14 +217,14 @@ function render(){
     '<span><b>' + S.entries.length + '</b> ' + (S.entries.length === 1 ? 'udgift' : 'udgifter') + '</span>';
 
   $('tiles').innerHTML =
-    '<div class="tile big"><span class="lbl">I alt</span><span class="eur">' + eur(total) + '</span><span class="dkk">' + dkk(total) + '</span></div>' +
-    '<div class="tile"><span class="lbl">I dag</span><span class="eur">' + eur(idx >= 0 ? sumDay(t) : 0) + '</span><span class="dkk">' + dkk(idx >= 0 ? sumDay(t) : 0) + '</span></div>' +
-    '<div class="tile"><span class="lbl">Snit pr. dag</span><span class="eur">' + eur(avg) + '</span><span class="dkk">' + dkk(avg) + '</span></div>';
+    '<div class="tile big"><span class="lbl">I alt</span><span class="eur">' + main(total) + '</span><span class="dkk">' + alt(total) + '</span></div>' +
+    '<div class="tile"><span class="lbl">I dag</span><span class="eur">' + main(idx >= 0 ? sumDay(t) : 0) + '</span><span class="dkk">' + alt(idx >= 0 ? sumDay(t) : 0) + '</span></div>' +
+    '<div class="tile"><span class="lbl">Snit pr. dag</span><span class="eur">' + main(avg) + '</span><span class="dkk">' + alt(avg) + '</span></div>';
 
   var sums = days.map(sumDay), max = Math.max.apply(null, sums.concat([1]));
   function cls(d){ return d === t ? 'today' : d > t ? 'future' : ''; }
   $('chart').innerHTML = '<div class="cols">' + days.map(function(d, i){
-      return '<div class="col ' + cls(d) + '"><span class="v">' + (sums[i] ? fmt(sums[i], 0) + ' €' : '') + '</span><i class="b" style="height:' + (sums[i] / max * 150) + 'px"></i></div>';
+      return '<div class="col ' + cls(d) + '"><span class="v">' + (sums[i] ? short(sums[i]) : '') + '</span><i class="b" style="height:' + (sums[i] / max * 150) + 'px"></i></div>';
     }).join('') + '</div><div class="days-lbl">' + days.map(function(d){
       return '<span class="' + cls(d) + '"><b>' + dayFmt(d, {weekday:'short'}).replace('.', '') + '</b>' + dayFmt(d, {day:'numeric'}) + '</span>';
     }).join('') + '</div>';
@@ -219,17 +235,18 @@ function render(){
     if (list.length) body = '<ul class="items">' + list.map(function(e){
       return '<li><span class="tm">' + (romeDate(new Date(e.ts)) === d ? clock(e.ts) : '') + '</span>' +
         '<span class="tx' + (e.t ? '' : ' none') + '">' + (e.t ? esc(e.t) : 'Uden tekst') + '</span>' +
-        '<span class="am"><b>' + eur(e.eur) + '</b><span>' + dkk(e.eur) + '</span></span>' +
+        '<span class="am"><b>' + main(e.eur) + '</b><span>' + alt(e.eur) + '</span></span>' +
         (token ? '<button class="del" type="button" data-id="' + esc(e.id) + '" aria-label="Slet ' + esc(e.t || eur(e.eur)) + '">×</button>' : '<span></span>') + '</li>';
     }).join('') + '</ul>';
     else body = '<p class="empty">' + (d > t ? 'Kommer.' : 'Intet registreret.') + '</p>';
     return '<article class="day ' + cls(d) + '"><div class="day-head"><span class="num">' + ROMAN[i] + '</span>' +
       '<div class="day-name"><b>' + dayFmt(d, {weekday:'long'}) + '</b><span>' + dayFmt(d, {day:'numeric', month:'long'}) + (d === t ? ' · i dag' : '') + '</span></div>' +
-      '<div class="day-sum"><b>' + eur(s) + '</b><span>' + dkk(s) + '</span></div></div>' + body + '</article>';
+      '<div class="day-sum"><b>' + main(s) + '</b><span>' + alt(s) + '</span></div></div>' + body + '</article>';
   }).join('');
 
   $('note').textContent = 'Beløb tastes i euro og omregnes til kroner med fast kurs ' + fmt(S.rate) + ' kr./€.';
   $('lock').textContent = token ? 'Lås redigering' : 'Rediger';
+  document.querySelectorAll('.toggle button').forEach(function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-cur') === cur); });
   $('add').hidden = !token;
   var sel = $('day'), keep = sel.value;
   sel.innerHTML = days.map(function(d){ return '<option value="' + d + '">' + dayFmt(d, {weekday:'short', day:'numeric', month:'short'}) + '</option>'; }).join('');
@@ -293,6 +310,13 @@ $('days').addEventListener('click', function(ev){
   commit(function(d){ d.entries = d.entries.filter(function(x){ return x.id !== id; }); }, 'Slettet ' + eur(e.eur) + (e.t ? ' ' + e.t : ''))
     .then(function(){ setStatus('Slettet.'); }, function(err){ setStatus(errText(err), true); })
     .then(function(){ busy = false; });
+});
+
+document.querySelector('.toggle').addEventListener('click', function(ev){
+  var b = ev.target.closest('button'); if (!b || !S) return;
+  cur = b.getAttribute('data-cur');
+  try { localStorage.setItem('mullah-cur', cur); } catch (_) {}
+  render();
 });
 
 $('lock').addEventListener('click', function(){
