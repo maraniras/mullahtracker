@@ -1,6 +1,6 @@
 # Mullah Tracker Roma
 
-What a week in Rome costs: shared spending from Wed 14 Oct to Tue 20 Oct 2026, entered in euro, shown in both € and kr.
+What a week in Rome costs: shared spending from Wed 14 Oct to Tue 20 Oct 2026, shown in both € and kr. Amounts can be typed in € or kr. (a switch on the amount field); kroner are converted at the fixed rate and stored as euro with four decimals.
 
 - Live site (GitHub Pages): https://maraniras.github.io/mullahtracker/
 - `index.html` is a static page that renders everything from `data.json`. There is no backend.
