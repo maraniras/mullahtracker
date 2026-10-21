@@ -74,15 +74,19 @@ input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px;bord
 .status.err{color:var(--accent);font-weight:600}
 
 .chart{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 14px 12px}
-.cols{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px;align-items:end;height:190px}
-.col{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:6px;min-width:0}
-.col .v{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
-.col .b{width:100%;max-width:58px;background:var(--ochre);border-radius:6px 6px 2px 2px;min-height:2px}
-.col.today .b{background:var(--accent)}
-.col.future .b{background:var(--line)}
-.days-lbl{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px;margin-top:8px;border-top:1px solid var(--line);padding-top:8px;text-align:center;font-size:13px;color:var(--muted);line-height:1.25}
-.days-lbl b{display:block;color:var(--fg);font-family:var(--display);font-size:13px}
-.days-lbl .today b{color:var(--accent)}
+.chart{display:grid;gap:10px}
+.hrow{display:grid;grid-template-columns:76px minmax(0,1fr) 92px;gap:12px;align-items:center;font-variant-numeric:tabular-nums}
+.hrow .dl{font-size:14px;color:var(--muted);white-space:nowrap}
+.hrow .dl b{font-family:var(--display);color:var(--fg);font-size:14px}
+.hrow.today .dl b{color:var(--accent)}
+.hrow.future{opacity:.55}
+.hrow .track{height:22px;background:var(--soft);border-radius:4px;overflow:hidden}
+.hrow .track i{display:block;height:100%;background:var(--ochre);border-radius:4px;min-width:2px}
+.hrow.today .track i{background:var(--accent)}
+.hv{text-align:right;line-height:1.2;white-space:nowrap}
+.hv b{display:block;font-size:15px}
+.hv span{font-size:13px;color:var(--muted)}
+@media (max-width:480px){.hrow{grid-template-columns:74px minmax(0,1fr) 72px;gap:8px}.hv b{font-size:14px}.hv span{font-size:12px}}
 
 .days{display:grid;gap:14px}
 .day{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
@@ -220,11 +224,12 @@ function render(){
 
   var sums = days.map(sumDay), max = Math.max.apply(null, sums.concat([1]));
   function cls(d){ return d === t ? 'today' : d > t ? 'future' : ''; }
-  $('chart').innerHTML = '<div class="cols">' + days.map(function(d, i){
-      return '<div class="col ' + cls(d) + '"><span class="v">' + (sums[i] ? fmt(sums[i], 0) + ' €' : '') + '</span><i class="b" style="height:' + (sums[i] / max * 150) + 'px"></i></div>';
-    }).join('') + '</div><div class="days-lbl">' + days.map(function(d){
-      return '<span class="' + cls(d) + '"><b>' + dayFmt(d, {weekday:'short'}).replace('.', '') + '</b>' + dayFmt(d, {day:'numeric'}) + '</span>';
-    }).join('') + '</div>';
+  // One row per day: date, bar, then the amount in € and kr.
+  $('chart').innerHTML = days.map(function(d, i){
+    return '<div class="hrow ' + cls(d) + '"><span class="dl"><b>' + dayFmt(d, {weekday:'short'}).replace('.', '') + '</b> ' + dayFmt(d, {day:'numeric', month:'numeric'}) + '</span>' +
+      '<span class="track"><i style="width:' + (sums[i] / max * 100) + '%"></i></span>' +
+      '<span class="hv">' + (sums[i] || d <= t ? '<b>' + fmt(sums[i], 0) + ' €</b><span>' + fmt(sums[i] * S.rate, 0) + ' kr.</span>' : '') + '</span></div>';
+  }).join('');
 
   $('days').innerHTML = days.map(function(d, i){
     var list = S.entries.filter(function(e){ return e.d === d; }).sort(function(a, b){ return a.ts < b.ts ? -1 : 1; });
